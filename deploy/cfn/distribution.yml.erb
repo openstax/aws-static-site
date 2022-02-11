@@ -103,10 +103,6 @@ Resources:
             - GET
             - HEAD
             - OPTIONS
-            - DELETE
-            - PATCH
-            - POST
-            - PUT
           CachedMethods:
             - GET
             - HEAD
@@ -117,10 +113,8 @@ Resources:
           MinTTL: 31536000
           ForwardedValues:
             Cookies:
-              Forward: all
+              Forward: none
             QueryString: 'true'
-            Headers:
-              - '*'
           ViewerProtocolPolicy: redirect-to-https
 
         Origins:
@@ -163,11 +157,7 @@ Resources:
         Comment: <%= prose_site_name %>
 
         ViewerCertificate:
-          AcmCertificateArn:
-            !If
-              - IsSandbox
-              - arn:aws:acm:us-east-1:373045849756:certificate/34ef83fa-8f16-4c9d-ab50-752317268030
-              - arn:aws:acm:us-east-1:624276253531:certificate/6bfdb6f2-f82f-4754-9971-bdd175166bba
+          AcmCertificateArn: !Ref Certificate
           SslSupportMethod: sni-only
           MinimumProtocolVersion: TLSv1.2_2019
 

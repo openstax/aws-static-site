@@ -8,6 +8,6 @@ docker run -it \
            --env AWS_ACCESS_KEY_ID --env AWS_SECRET_ACCESS_KEY --env AWS_SESSION_TOKEN \
            -v $DIR/..:/code \
            $(cat $DIR/local_docker_options 2>/dev/null) \
-           -w /code/scripts \
-           DOCKER_IMAGE_NAME:latest \
+           -w /code \
+           aws_static_site:latest \
            "$@"

@@ -1,48 +1,53 @@
 #!/usr/bin/env ruby
 
-require 'bundler/inline'
+require 'active_support'
+require 'active_support/core_ext'
 require 'forwardable'
 require 'open3'
+require 'byebug'
+require_relative 'config'
 
-gemfile do
-  gem 'aws-sdk-sts', '1.2.0'
-  gem 'aws-sdk-cloudformation', '1.50.0'
-  gem 'byebug'
-end
-
-REGION = 'us-east-1'
 BAD_STACK_STATES = %w[ROLLBACK_COMPLETE ROLLBACK_IN_PROGRESS]
 
 ################ HELPER FUNCTIONS ################
 
-def cfn_client
-  @cloudformation_client ||= Aws::CloudFormation::Client.new(region: REGION)
-end
-
-def current_account_id
-  @current_account_id ||= Aws::STS::Client.new(region: REGION).get_caller_identity.account
-end
-
 def run(command)
+  puts "Running: #{command}"
+
+  output = []
   Open3.popen2e(command) do |stdin, stdout_err, wait_thr|
     stdout_err.sync = true
 
     while char = stdout_err.getc do
+      output.push(char)
       STDERR.print char
     end
   end
+
+  output.join.chomp
 end
 
-def deploy_stack(template_file:, capabilities: 'CAPABILITY_NAMED_IAM')
-  stack_name = "static-site-"
+def deploy_stack(template_file:, region:, capabilities: 'CAPABILITY_NAMED_IAM', parameters: nil)
+  _, filename = File.split(template_file)
+  stack_name = "static-site-#{Config.instance[:hyphen_site_name]}-#{filename.gsub('.yml','').downcase.gsub('_','-')}"
+
   command_parts = [
-    "aws cloudformation deploy --region #{REGION}",
+    "aws cloudformation deploy --region #{region}",
     "--template-file #{template_file}",
-    "--stack-name #{stack_name}",
-    "--tags Project=Blah" # TODO get from Config
+    "--stack-name #{stack_name(template_file)}"
   ]
 
-  command_parts.push("--capabilities #{capabilities}") if capabilities
+  if parameters
+    command_parts.push("--parameter-overrides #{parameters.map{|key, value| %Q(\"#{key}=#{value}\")}.join(' ')}")
+  end
+
+  if Config.instance[:tags]
+    command_parts.push("--tags #{Config.instance[:tags].map{|key, value| %Q(\"#{key}=#{value}\")}.join(' ')}")
+  end
+
+  if capabilities
+    command_parts.push("--capabilities #{capabilities}")
+  end
 
   command = command_parts.join(' ')
 
@@ -53,9 +58,38 @@ def build_generated_templates
   run("#{__dir__}/build_cfn")
 end
 
+def stack_name(template_file)
+  _, filename = File.split(template_file)
+  "static-site-#{Config.instance[:hyphen_site_name]}-#{filename.gsub('.yml','').downcase.gsub('_','-')}"
+end
+
+def get_oai_user_id(region:, template_file:)
+  run(%Q(aws cloudformation --region #{region} describe-stacks --stack-name #{stack_name(template_file)} --query "Stacks[0].Outputs[?OutputKey=='OaiS3CanonicalUserId'].OutputValue" --output text))
+end
+
+def get_hosted_zone_id(hosted_zone_name:)
+  run(%Q(aws route53 list-hosted-zones --output text --query "HostedZones[?Name=='#{hosted_zone_name}.'].Id")).split('/').last
+end
+
 ################ THE SCRIPT ################
 
+hosted_zone_id = get_hosted_zone_id(hosted_zone_name: Config.instance[:hosted_zone_name])
 
 
 build_generated_templates
-deploy_stack(template_file: "#{__dir__}/build/identities.yml", stack_name: "static-site")
+deploy_stack(region: 'us-east-1', template_file: "#{__dir__}/build/identities.yml")
+
+oai_user_id = get_oai_user_id(region: 'us-east-1', template_file: "#{__dir__}/build/identities.yml")
+
+deploy_stack(region: 'us-east-2', template_file: "#{__dir__}/build/replica_bucket.yml",
+             parameters: {OaiS3CanonicalUserId: oai_user_id})
+
+deploy_stack(region: 'us-east-1', template_file: "#{__dir__}/build/primary_bucket.yml",
+             parameters: {OaiS3CanonicalUserId: oai_user_id})
+
+deploy_stack(region: 'us-east-1', template_file: "#{__dir__}/build/distribution.yml",
+             parameters: {
+               HostedZoneName: Config.instance[:hosted_zone_name],
+               HostedZoneId: hosted_zone_id,
+               ActiveDistributionDomain: Config.instance[:domain_name]
+              })

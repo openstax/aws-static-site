@@ -24,13 +24,13 @@ Resources:
 
 Outputs:
 
-  ShareWebOai:
+  Oai:
     Description: CloudFront distribution OAI
     Value: !Ref OriginAccessIdentity
     Export:
       Name: "<%= camel_site_name %>Oai"
 
-  SharedWebOaiS3CanonicalUserId:
+  OaiS3CanonicalUserId:
     Description: CloudFront distribution OAI S3 canonical user ID
     Value: !GetAtt OriginAccessIdentity.S3CanonicalUserId
     Export:

@@ -3,3 +3,8 @@ prose_site_name: Eat Pizza
 # primary_bucket_name: eat-pizza-primary
 # replica_bucket_name: eat-pizza-replica
 path_to_404_html: 404.html
+# tags:
+#   Project: Foo
+#   Application: Bar
+hosted_zone_name: somedomain.org
+domain_name: somedomain.org
