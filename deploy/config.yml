@@ -1,0 +1,5 @@
+prose_site_name: Eat Pizza
+# camel_site_name: EatPizza
+# primary_bucket_name: eat-pizza-primary
+# replica_bucket_name: eat-pizza-replica
+path_to_404_html: 404.html

@@ -1,0 +1,39 @@
+#!/usr/bin/env ruby
+
+require 'yaml'
+require 'active_support'
+require 'active_support/core_ext'
+require 'fileutils'
+require 'byebug'
+require_relative 'erb_file'
+
+include ToYamlViaErb
+
+def load_config(file)
+  config = YAML.load_file(file).with_indifferent_access
+
+  raise "'config.yml' must specify a value for `prose_site_name`" if config[:prose_site_name].blank?
+  raise "'config.yml' must specify a value for `path_to_404_html`" if config[:path_to_404_html].blank?
+
+  config[:camel_site_name] ||= config[:prose_site_name].gsub(/['"]/,"").gsub(" ", "_").camelcase
+
+  bucket_prefix = config[:prose_site_name].gsub(/['"]/,"").gsub(" ", "-").downcase
+
+  config[:primary_bucket_name] ||= "#{bucket_prefix}-primary"
+  config[:replica_bucket_name] ||= "#{bucket_prefix}-replica"
+
+  config
+end
+
+deploy_dir = "#{__dir__}/../deploy"
+build_dir = "#{deploy_dir}/build"
+
+config = load_config("#{deploy_dir}/config.yml")
+
+FileUtils.mkdir_p(build_dir)
+
+Dir.glob("#{deploy_dir}/cfn/*.erb").each do |erb_file|
+  directory, filename = File.split(erb_file)
+  yaml = to_yaml_via_erb(directory, filename, 0, config)
+  File.write("#{build_dir}/#{filename.gsub('.erb','')}", yaml)
+end

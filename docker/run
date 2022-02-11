@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+
+[ -z "$AWS_ACCESS_KEY_ID" ] && echo -e "\e[33mWarning: AWS credentials are not set.\e[39m"
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+
+docker run -it \
+           --env AWS_ACCESS_KEY_ID --env AWS_SECRET_ACCESS_KEY --env AWS_SESSION_TOKEN \
+           -v $DIR/..:/code \
+           $(cat $DIR/local_docker_options 2>/dev/null) \
+           -w /code/scripts \
+           DOCKER_IMAGE_NAME:latest \
+           "$@"

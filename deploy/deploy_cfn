@@ -1,0 +1,61 @@
+#!/usr/bin/env ruby
+
+require 'bundler/inline'
+require 'forwardable'
+require 'open3'
+
+gemfile do
+  gem 'aws-sdk-sts', '1.2.0'
+  gem 'aws-sdk-cloudformation', '1.50.0'
+  gem 'byebug'
+end
+
+REGION = 'us-east-1'
+BAD_STACK_STATES = %w[ROLLBACK_COMPLETE ROLLBACK_IN_PROGRESS]
+
+################ HELPER FUNCTIONS ################
+
+def cfn_client
+  @cloudformation_client ||= Aws::CloudFormation::Client.new(region: REGION)
+end
+
+def current_account_id
+  @current_account_id ||= Aws::STS::Client.new(region: REGION).get_caller_identity.account
+end
+
+def run(command)
+  Open3.popen2e(command) do |stdin, stdout_err, wait_thr|
+    stdout_err.sync = true
+
+    while char = stdout_err.getc do
+      STDERR.print char
+    end
+  end
+end
+
+def deploy_stack(template_file:, capabilities: 'CAPABILITY_NAMED_IAM')
+  stack_name = "static-site-"
+  command_parts = [
+    "aws cloudformation deploy --region #{REGION}",
+    "--template-file #{template_file}",
+    "--stack-name #{stack_name}",
+    "--tags Project=Blah" # TODO get from Config
+  ]
+
+  command_parts.push("--capabilities #{capabilities}") if capabilities
+
+  command = command_parts.join(' ')
+
+  run(command)
+end
+
+def build_generated_templates
+  run("#{__dir__}/build_cfn")
+end
+
+################ THE SCRIPT ################
+
+
+
+build_generated_templates
+deploy_stack(template_file: "#{__dir__}/build/identities.yml", stack_name: "static-site")

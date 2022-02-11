@@ -1,0 +1,1 @@
+-v /Users/bob/.gitconfig:/etc/gitconfig -v /Users/bob/.ssh:/root/.ssh -v /Users/bob/.bash_aliases:/root/.bash_aliases

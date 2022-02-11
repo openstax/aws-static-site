@@ -1,0 +1,37 @@
+Description: >
+  Identities needed by both primary and replica buckets for the <%= prose_site_name %> web site
+
+Resources:
+
+  # There are two ways for CloudFront to access content in an S3 bucket.  One has the
+  # buckets configured with website endpoints and CloudFront hits the buckets as custom
+  # origins.  The other method connects CloudFront to the buckets using an "origin access
+  # identity" (OAI).  When we use a primary and replicated failover bucket in the CloudFront
+  # configuration (via an origin group), then per https://goo.gl/M2Dru3 ...
+  #
+  # > If you use two S3 buckets in your origin group and you use OAI, both buckets
+  # > must be set up with the same OAI.
+  #
+  # Because of the difficulty of sharing information between stacks across regions,
+  # we use this stack to make the OAI so its value can be given to the two stacks that
+  # control the primary and replica buckets.
+
+  OriginAccessIdentity:
+    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: Allows CloudFront distribution access to both primary and replica buckets
+
+Outputs:
+
+  ShareWebOai:
+    Description: CloudFront distribution OAI
+    Value: !Ref OriginAccessIdentity
+    Export:
+      Name: "<%= camel_site_name %>Oai"
+
+  SharedWebOaiS3CanonicalUserId:
+    Description: CloudFront distribution OAI S3 canonical user ID
+    Value: !GetAtt OriginAccessIdentity.S3CanonicalUserId
+    Export:
+      Name: "<%= camel_site_name %>OaiS3CanonicalUserId"

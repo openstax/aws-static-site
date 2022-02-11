@@ -1,0 +1,200 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Description: CloudFront distribution for <%= prose_site_name %> web site
+
+Parameters:
+
+  HostedZoneName:
+    Description: name of the hosted zone to use
+    Type: String
+    ConstraintDescription: must be a valid Route53 hosted zone domain; no period at end
+
+  HostedZoneId:
+    Description: ID of the hosted zone to use
+    Type: String
+
+  ActiveDistributionDomain:
+    Description: Domain for the CloudFront distribution, e.g. "something.org", to be configured in Route53
+    Type: String
+    ConstraintDescription: must be a valid domain name
+
+Conditions:
+  # Lambda@Edge functions need to be created in us-east-1; there might be a way
+  # to set up other resources in other regions using StackSets, but for now force
+  # the region with this condition, in case one day we add Lambda@Edge
+  WrongRegion: !Not [!Equals [!Ref 'AWS::Region', us-east-1]]
+
+Resources:
+
+  # References:
+  #  - https://github.com/aws-samples/aws-refarch-wordpress/blob/master/templates/aws-refarch-wordpress-04-cloudfront.yaml
+
+  Certificate:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      DomainName: !Ref ActiveDistributionDomain
+      SubjectAlternativeNames:
+        - !Sub '*.${ActiveDistributionDomain}'
+      ValidationMethod: DNS
+      DomainValidationOptions:
+        - DomainName: !Ref ActiveDistributionDomain
+          HostedZoneId: !Ref HostedZoneId
+
+  Dns:
+    Type: AWS::Route53::RecordSetGroup
+    Properties:
+      HostedZoneName: !Sub '${HostedZoneName}.'
+      RecordSets:
+        - Name: !Sub '${ActiveDistributionDomain}.'
+          Type: A
+          AliasTarget:
+            HostedZoneId: Z2FDTNDATAQYW2 # Indicates CloudFront
+            DNSName: !GetAtt 'MainDistribution.DomainName'
+
+  MainDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        HttpVersion: 'http2'
+        Enabled: 'true'
+
+        CacheBehaviors:
+          - PathPattern: robots.txt
+            TargetOriginId: ContentOrigin
+            AllowedMethods:
+              - GET
+              - HEAD
+              - OPTIONS
+            CachedMethods:
+              - GET
+              - HEAD
+              - OPTIONS
+            Compress: 'true'
+            DefaultTTL: 100
+            MaxTTL: 100
+            MinTTL: 100
+            ForwardedValues:
+              Cookies:
+                Forward: none
+              QueryString: 'false'
+            ViewerProtocolPolicy: redirect-to-https
+
+          - PathPattern: <%= path_to_404_html %>
+            TargetOriginId: ContentOrigin
+            AllowedMethods:
+              - GET
+              - HEAD
+            CachedMethods:
+              - GET
+              - HEAD
+            Compress: 'true'
+            DefaultTTL: 300
+            MaxTTL: 300
+            MinTTL: 300
+            ForwardedValues:
+              Cookies:
+                Forward: none
+              QueryString: 'true'
+            ViewerProtocolPolicy: redirect-to-https
+
+        DefaultCacheBehavior:
+          TargetOriginId: ContentOrigin
+          AllowedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+            - DELETE
+            - PATCH
+            - POST
+            - PUT
+          CachedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+          Compress: 'true'
+          DefaultTTL: 31536000
+          MaxTTL: 31536000
+          MinTTL: 31536000
+          ForwardedValues:
+            Cookies:
+              Forward: all
+            QueryString: 'true'
+            Headers:
+              - '*'
+          ViewerProtocolPolicy: redirect-to-https
+
+        Origins:
+          - Id: ContentPrimaryOrigin
+            DomainName: !Join [ "", [!ImportValue <%= camel_site_name %>PrimaryBucketName, ".s3.amazonaws.com" ] ]
+            S3OriginConfig:
+              OriginAccessIdentity: !Sub
+                - origin-access-identity/cloudfront/${OAIValue}
+                - { OAIValue: !ImportValue WebHostingOai }
+
+          - Id: ContentReplicaOrigin
+            DomainName: !Join [ "", [!ImportValue <%= camel_site_name %>ReplicaBucketName, ".s3.amazonaws.com" ] ]
+            S3OriginConfig:
+              OriginAccessIdentity: !Sub
+                - origin-access-identity/cloudfront/${OAIValue}
+                - { OAIValue: !ImportValue WebHostingOai }
+
+        OriginGroups:
+          Quantity: 1
+          Items:
+            - Id: ContentOrigin
+              FailoverCriteria:
+                StatusCodes:
+                  Items: [ 500, 502, 503, 504, 403, 404 ]
+                  Quantity: 6
+              Members:
+                Items:
+                  - OriginId: ContentPrimaryOrigin
+                  - OriginId: ContentReplicaOrigin
+                Quantity: 2
+
+        CustomErrorResponses:
+          - ErrorCachingMinTTL: 5
+            ErrorCode: 404
+            ResponseCode: 404
+            ResponsePagePath: <%= path_to_404_html %>
+
+        IPV6Enabled: 'false' # until we know otherwise
+
+        Comment: <%= prose_site_name %>
+
+        ViewerCertificate:
+          AcmCertificateArn:
+            !If
+              - IsSandbox
+              - arn:aws:acm:us-east-1:373045849756:certificate/34ef83fa-8f16-4c9d-ab50-752317268030
+              - arn:aws:acm:us-east-1:624276253531:certificate/6bfdb6f2-f82f-4754-9971-bdd175166bba
+          SslSupportMethod: sni-only
+          MinimumProtocolVersion: TLSv1.2_2019
+
+      Tags:
+        - Key: Application
+          Value: <%= camel_site_name %>
+        - Key: Project
+          Value: Static Sites
+
+  # This resource will only be created when trying to deploy in a wrong region
+  YouAreInTheWrongRegion:
+    Type: "AWS::SSM::Parameter"
+    Condition: WrongRegion
+    Properties:
+      Name: '' # Leave name empty to force a fail
+      Type: String
+
+Outputs:
+
+  MainDistributionId:
+    Description: Main distribution CloudFront ID
+    Value: !Ref MainDistribution
+    Export:
+      Name: !Sub '${AWS::StackName}-distribution-id'
+
+  MainDistributionDomainName:
+    Description: Main distribution domain name
+    Value: !GetAtt 'MainDistribution.DomainName'
+    Export:
+      Name: !Sub '${AWS::StackName}-distribution-domain-name'

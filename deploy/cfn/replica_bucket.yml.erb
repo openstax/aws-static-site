@@ -1,0 +1,61 @@
+Description: >
+  Replica bucket for <%= prose_site_name %> web site
+
+Parameters:
+
+  BucketName:
+    Type: String
+    Default: <%= replica_bucket_name %>
+
+  OaiS3CanonicalUserId:
+    Type: String
+
+Resources:
+
+  Bucket:
+    Type: "AWS::S3::Bucket"
+    Properties:
+      BucketName: !Ref BucketName
+      VersioningConfiguration:
+        Status: "Enabled"
+      LifecycleConfiguration:
+        Rules:
+          - Id: MustHaveVersioningButDoNotWantOldVersions
+            NoncurrentVersionExpirationInDays: 1
+            Status: "Enabled"
+      WebsiteConfiguration:
+        IndexDocument: "doesnt-exist.html"
+      AccessControl: PublicRead
+
+  BucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: PublicReadForGetBucketObjects
+            Effect: Allow
+            Principal: '*'
+            Action: 's3:GetObject'
+            Resource: !Join [ "", [ "arn:aws:s3:::", !Ref Bucket, "/*" ] ]
+          - Action:
+              - s3:GetObject
+            Effect: Allow
+            Resource: !Join [ "", [ "arn:aws:s3:::", !Ref BucketName, "/*" ] ]
+            Principal:
+              CanonicalUser: !Ref OaiS3CanonicalUserId
+          - Action:
+              - s3:ListBucket # lets S3 return 404's
+            Effect: Allow
+            Resource: !Join [ "", [ "arn:aws:s3:::", !Ref BucketName ] ]
+            Principal:
+              CanonicalUser: !Ref OaiS3CanonicalUserId
+      Bucket: !Ref Bucket
+
+Outputs:
+
+  BucketName:
+    Description: Replica bucket name
+    Value: !Ref Bucket
+    Export:
+      Name: '<%= camel_site_name %>ReplicaBucketName'

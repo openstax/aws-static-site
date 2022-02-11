@@ -1,0 +1,29 @@
+{
+  "name": "AWS Static Site",
+  "build": {
+    "dockerfile": "../docker/Dockerfile",
+    "context": "..",
+    "args": {
+      "bundler_version": "2.2.21"
+    }
+  },
+  "workspaceMount": "source=${localWorkspaceFolder},target=/code,type=bind,consistency=default",
+  "workspaceFolder": "/code",
+  "extensions": [
+    "rebornix.Ruby",
+  ],
+  "settings": {
+    "files.trimTrailingWhitespace": true,
+    "files.insertFinalNewline": true,
+    "files.associations": {
+      "*.yml.erb": "yml"
+    },
+    "terminal.integrated.shell.linux": "/bin/bash",
+    "[ruby]": {
+      "editor.insertSpaces": true,
+      "editor.tabSize": 2,
+    },
+    "ruby.useLanguageServer": true,
+    "terminal.integrated.scrollback": 100000
+  }
+}

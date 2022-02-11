@@ -1,0 +1,113 @@
+Description: >
+  Primary bucket for <%= prose_site_name %> web site
+
+Parameters:
+
+  BucketName:
+    Type: String
+    Default: <%= primary_bucket_name %>
+
+  ReplicaBucketName:
+    Type: String
+    Default: <%= replica_bucket_name %>
+
+  OaiS3CanonicalUserId:
+    Type: String
+
+Resources:
+
+  ReplicationRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action: ['sts:AssumeRole']
+          Effect: Allow
+          Principal:
+            Service: [s3.amazonaws.com]
+
+  ReplicationPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+        - Action:
+          - s3:Get*
+          - s3:ListBucket
+          Resource:
+          - !Sub arn:aws:s3:::${BucketName}
+          - !Sub arn:aws:s3:::${BucketName}/*
+          Effect: 'Allow'
+        - Action:
+          - s3:ReplicateObject
+          - s3:ReplicateDelete
+          - s3:ReplicateTags
+          - s3:GetObjectVersionTagging
+          Effect: 'Allow'
+          Resource: !Sub arn:aws:s3:::${ReplicaBucketName}/*
+      PolicyName: ReplicationPolicy
+      Roles: [!Ref 'ReplicationRole']
+
+  Bucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Delete
+    Properties:
+      BucketName: !Ref BucketName
+      ReplicationConfiguration:
+        Role: !GetAtt [ReplicationRole, Arn]
+        Rules:
+        - Destination:
+            Bucket: !Sub arn:aws:s3:::${ReplicaBucketName}
+            StorageClass: STANDARD
+          Id: Backup
+          Prefix: ''
+          Status: Enabled
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: MustHaveVersioningButDoNotWantOldVersions
+            NoncurrentVersionExpirationInDays: 1
+            Status: "Enabled"
+      WebsiteConfiguration:
+        IndexDocument: "doesnt-exist.html"
+      AccessControl: PublicRead
+
+  BucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: PublicReadForGetBucketObjects
+            Effect: Allow
+            Principal: '*'
+            Action: 's3:GetObject'
+            Resource: !Join [ "", [ "arn:aws:s3:::", !Ref Bucket, "/*" ] ]
+          - Action:
+              - s3:GetObject
+            Effect: Allow
+            Resource: !Join [ "", [ "arn:aws:s3:::", !Ref BucketName, "/*" ] ]
+            Principal:
+              CanonicalUser: !Ref OaiS3CanonicalUserId
+          - Action:
+              - s3:ListBucket # lets S3 return 404's
+            Effect: Allow
+            Resource: !Join [ "", [ "arn:aws:s3:::", !Ref BucketName ] ]
+            Principal:
+              CanonicalUser: !Ref OaiS3CanonicalUserId
+      Bucket: !Ref Bucket
+
+Outputs:
+
+  BucketName:
+    Description: Primary bucket name
+    Value: !Ref Bucket
+    Export:
+      Name: '<%= camel_site_name %>PrimaryBucketName'
+
+  ReplicaBucketName:
+    Description: Replica bucket name
+    Value: !Sub ${ReplicaBucketName}
+    Export:
+      Name: '<%= camel_site_name %>ReplicaBucketName'
