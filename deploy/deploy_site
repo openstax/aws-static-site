@@ -1,0 +1,11 @@
+#!/usr/bin/env ruby
+
+require 'byebug'
+require_relative 'utils'
+require_relative 'config'
+
+include Utils
+
+run(%Q(aws s3 sync #{__dir__}/../#{Config.instance[:site_path]} s3://#{Config.instance[:primary_bucket_name]}/ --delete --region us-east-1))
+
+run(%Q(aws cloudfront create-invalidation --distribution-id #{get_distribution_id} --paths "/*" --output text --query "Invalidation.Status"))

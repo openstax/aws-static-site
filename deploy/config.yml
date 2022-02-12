@@ -22,6 +22,10 @@ prose_site_name: Eat Pizza
 # The path on your deployed web site to your 404 page.  Should start with a slash
 path_to_404_html: /404.html
 
+# path_to_index_html (required)
+# The path on your deployed site to your starting page.  Should not start with a slash
+path_to_index_html: index.html
+
 # tags (optional)
 # Tags to apply to your AWS resources.
 # tags:
@@ -35,3 +39,7 @@ hosted_zone_name: somedomain.org
 # domain_name (required)
 # The domain of your site, can be the same as the hosted zone name, or a subdomain of the hosted zone name
 domain_name: somedomain.org
+
+# site_path (required)
+# The path to the web site files to deploy to the S3 bucket
+site_path: site

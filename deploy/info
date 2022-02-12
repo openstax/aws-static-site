@@ -11,10 +11,6 @@ include Utils
 
 info = {}.merge(Config.instance)
 
-info[:cloudfront_distribution_id] = get_stack_output(
-  region: 'us-east-1',
-  template_file: "#{__dir__}/build/distribution.yml",
-  output_key: "MainDistributionId"
-)
+info[:cloudfront_distribution_id] = get_distribution_id
 
 puts JSON.pretty_generate(info)

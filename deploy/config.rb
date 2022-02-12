@@ -13,6 +13,7 @@ class Config < HashWithIndifferentAccess
 
     raise "'config.yml' must specify a value for `prose_site_name`" if self[:prose_site_name].blank?
     raise "'config.yml' must specify a value for `path_to_404_html`" if self[:path_to_404_html].blank?
+    raise "'config.yml' must specify a value for `path_to_index_html`" if self[:path_to_index_html].blank?
     raise "'config.yml' must specify a value for `hosted_zone_name`" if self[:hosted_zone_name].blank?
     raise "'config.yml' must specify a value for `domain_name`" if self[:domain_name].blank?
 

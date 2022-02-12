@@ -57,6 +57,7 @@ Resources:
       DistributionConfig:
         HttpVersion: 'http2'
         Enabled: 'true'
+        DefaultRootObject: <%= path_to_index_html %>
         Aliases:
           - !Ref ActiveDistributionDomain
 
@@ -125,14 +126,14 @@ Resources:
             S3OriginConfig:
               OriginAccessIdentity: !Sub
                 - origin-access-identity/cloudfront/${OAIValue}
-                - { OAIValue: !ImportValue WebHostingOai }
+                - { OAIValue: !ImportValue <%= camel_site_name %>Oai }
 
           - Id: ContentReplicaOrigin
             DomainName: !Join [ "", [!ImportValue <%= camel_site_name %>ReplicaBucketName, ".s3.amazonaws.com" ] ]
             S3OriginConfig:
               OriginAccessIdentity: !Sub
                 - origin-access-identity/cloudfront/${OAIValue}
-                - { OAIValue: !ImportValue WebHostingOai }
+                - { OAIValue: !ImportValue <%= camel_site_name %>Oai }
 
         OriginGroups:
           Quantity: 1

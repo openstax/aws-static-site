@@ -32,4 +32,12 @@ module Utils
     run(%Q(aws cloudformation --region #{region} describe-stacks --stack-name #{stack_name(template_file)} --query "Stacks[0].Outputs[?OutputKey=='#{output_key}'].OutputValue" --output text), quiet: true)
   end
 
+  def get_distribution_id
+    get_stack_output(
+      region: 'us-east-1',
+      template_file: "#{__dir__}/build/distribution.yml",
+      output_key: "MainDistributionId"
+    )
+  end
+
 end
