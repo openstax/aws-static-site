@@ -22,7 +22,6 @@ COPY deploy/Gemfile* /tmp/
 
 RUN cd /tmp && \
     bundle install && \
-    gem install s3_website && \
     rm -rf /root/.bundle/cache/*
 
 # Install a quick colorized prompt and turn on ls coloring
