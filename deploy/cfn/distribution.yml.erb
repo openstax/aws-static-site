@@ -102,6 +102,9 @@ Resources:
 
         DefaultCacheBehavior:
           TargetOriginId: ContentOrigin
+          FunctionAssociations:
+            - EventType: viewer-request
+              FunctionARN: !GetAtt IndexHtmlFunction.FunctionMetadata.FunctionARN
           AllowedMethods:
             - GET
             - HEAD
@@ -169,6 +172,33 @@ Resources:
           Value: <%= camel_site_name %>
         - Key: Project
           Value: Static Sites
+
+  IndexHtmlFunction:
+    Type: AWS::CloudFront::Function
+    Properties:
+      AutoPublish: true
+      FunctionCode: |
+        function handler(event) {
+          // Copied from https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/example-function-add-index.html
+          // Retrieved on 2021-12-18
+          var request = event.request;
+          var uri = request.uri;
+
+          // Check whether the URI is missing a file name.
+          if (uri.endsWith('/')) {
+              request.uri += 'index.html';
+          }
+          // Check whether the URI is missing a file extension.
+          else if (!uri.includes('.')) {
+              request.uri += '/index.html';
+          }
+
+          return request;
+        }
+      FunctionConfig:
+        Comment: !Sub 'Add index.html to support clean URLs outside of site root'
+        Runtime: cloudfront-js-1.0
+      Name: !Sub "${AWS::StackName}-index-html-function"
 
   # This resource will only be created when trying to deploy in a wrong region
   YouAreInTheWrongRegion:

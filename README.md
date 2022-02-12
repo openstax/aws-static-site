@@ -7,8 +7,9 @@ This repo lets you host a very low-cost static web site on Amazon Web Services.
 * Free AWS-managed SSL certificate included
 * Uses redundant S3 buckets in two regions so that your web site stays live when there is a single AWS region failure.
 * Content delivered to users over CloudFront, AWS's fast content delivery network
-  * Their permanent free tier provides 1TB of data out and 10M requests
+  * Their permanent free tier provides 1TB of data out and 10M requests per month
   * Data transfer from S3 to CloudFront is free
+* You can use clean URLs, i.e. those without 'index.html' at the end.  CloudFront will add index.html when needed via a CloudFront function (2M free per month)
 * Docker is the only required install on your computer
 
 ## Getting Started
