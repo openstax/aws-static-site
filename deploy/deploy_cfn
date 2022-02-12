@@ -6,26 +6,29 @@ require 'forwardable'
 require 'open3'
 require 'byebug'
 require_relative 'config'
+require_relative 'utils'
 
 BAD_STACK_STATES = %w[ROLLBACK_COMPLETE ROLLBACK_IN_PROGRESS]
 
 ################ HELPER FUNCTIONS ################
 
-def run(command)
-  puts "Running: #{command}"
+include Utils
 
-  output = []
-  Open3.popen2e(command) do |stdin, stdout_err, wait_thr|
-    stdout_err.sync = true
+# def run(command)
+#   puts "Running: #{command}"
 
-    while char = stdout_err.getc do
-      output.push(char)
-      STDERR.print char
-    end
-  end
+#   output = []
+#   Open3.popen2e(command) do |stdin, stdout_err, wait_thr|
+#     stdout_err.sync = true
 
-  output.join.chomp
-end
+#     while char = stdout_err.getc do
+#       output.push(char)
+#       STDERR.print char
+#     end
+#   end
+
+#   output.join.chomp
+# end
 
 def deploy_stack(template_file:, region:, capabilities: 'CAPABILITY_NAMED_IAM', parameters: nil)
   _, filename = File.split(template_file)
@@ -58,17 +61,18 @@ def build_generated_templates
   run("#{__dir__}/build_cfn")
 end
 
-def stack_name(template_file)
-  _, filename = File.split(template_file)
-  "static-site-#{Config.instance[:hyphen_site_name]}-#{filename.gsub('.yml','').downcase.gsub('_','-')}"
-end
+# def stack_name(template_file)
+#   _, filename = File.split(template_file)
+#   "static-site-#{Config.instance[:hyphen_site_name]}-#{filename.gsub('.yml','').downcase.gsub('_','-')}"
+# end
 
 def get_oai_user_id(region:, template_file:)
-  run(%Q(aws cloudformation --region #{region} describe-stacks --stack-name #{stack_name(template_file)} --query "Stacks[0].Outputs[?OutputKey=='OaiS3CanonicalUserId'].OutputValue" --output text))
+  get_stack_output(region: region, template_file: template_file, output_key: 'OaiS3CanonicalUserId')
+  # run(%Q(aws cloudformation --region #{region} describe-stacks --stack-name #{stack_name(template_file)} --query "Stacks[0].Outputs[?OutputKey=='OaiS3CanonicalUserId'].OutputValue" --output text))
 end
 
 def get_hosted_zone_id(hosted_zone_name:)
-  run(%Q(aws route53 list-hosted-zones --output text --query "HostedZones[?Name=='#{hosted_zone_name}.'].Id")).split('/').last
+  run(%Q(aws route53 list-hosted-zones --output text --query "HostedZones[?Name=='#{hosted_zone_name}.'].Id"), quiet: true).split('/').last
 end
 
 ################ THE SCRIPT ################

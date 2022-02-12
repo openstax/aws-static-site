@@ -1,0 +1,20 @@
+#!/usr/bin/env ruby
+
+require 'active_support'
+require 'active_support/core_ext'
+require 'byebug'
+require_relative 'config'
+require 'json'
+require_relative 'utils'
+
+include Utils
+
+info = {}.merge(Config.instance)
+
+info[:cloudfront_distribution_id] = get_stack_output(
+  region: 'us-east-1',
+  template_file: "#{__dir__}/build/distribution.yml",
+  output_key: "MainDistributionId"
+)
+
+puts JSON.pretty_generate(info)

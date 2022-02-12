@@ -6,6 +6,7 @@ ENV PATH $GEM_HOME/bin:$GEM_HOME/gems/bin:$PATH
 RUN apt-get update && apt-get install -y \
       curl \
       vim \
+      default-jre \
       && \
   rm -rf /var/lib/apt/lists/*
 
@@ -18,10 +19,11 @@ RUN cd /tmp && \
 RUN gem install bundler:2.2.21 && \
     bundle config set silence_root_warning 'true'
 
-COPY Gemfile* /tmp/
+COPY deploy/Gemfile* /tmp/
 
 RUN cd /tmp && \
     bundle install && \
+    gem install s3_website && \
     rm -rf /root/.bundle/cache/*
 
 # Install a quick colorized prompt and turn on ls coloring

@@ -16,6 +16,12 @@ class Config < HashWithIndifferentAccess
     raise "'config.yml' must specify a value for `hosted_zone_name`" if self[:hosted_zone_name].blank?
     raise "'config.yml' must specify a value for `domain_name`" if self[:domain_name].blank?
 
+    if self[:domain_name] == 'somedomain.org' ||
+       self[:hosted_zone_name] == 'somedomain.org' ||
+       self[:prose_site_name] == 'Eat Pizza'
+      raise "'config.yml' must have its placeholder values replaced (see README)"
+    end
+
     self[:hyphen_site_name] = self[:hyphen_site_name] || self[:prose_site_name].gsub(/['"]/,"").gsub(" ", "-").downcase
     self[:camel_site_name] = self[:camel_site_name] || self[:prose_site_name].gsub(/['"]/,"").gsub(" ", "_").camelcase
     self[:primary_bucket_name] = self[:primary_bucket_name] || "#{self[:hyphen_site_name]}-primary"
